@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Self
+from typing import Self, Callable
 import torch as th
 
 
@@ -112,3 +112,24 @@ class Grad2d(LinOp):
         div[:, :, 1:, :] += y[:, 1, :-1, :]
         div[:, :, :-1, :] -= y[:, 1, :-1, :]
         return div
+
+class Sample(LinOp):
+    def __init__(self, indices: th.Tensor):
+        self.indices = indices
+
+    def apply(self, x: th.Tensor) -> th.Tensor:
+        return x[self.indices]
+
+    def applyT(self, y: th.Tensor) -> th.Tensor:
+        # TODO guess we need to take the dtype as input arg
+        # TODO the zeros can be cached since theyre always at the same position
+        rv = th.zeros_like(self.indices, dtype=th.complex128)
+        rv[self.indices] = y
+        return rv
+
+# TODO this is a hack. i guess this structure (with apply and applyT being abstract in the base class) is not optimal.
+# how can we make it such that the user can just define their operator?
+class Generic(LinOp):
+    def __init__(self, apply: Callable[[x=th.Tensor], th.Tensor], applyT: Callable[[th.Tensor], th.Tensor]) -> None:
+        self.apply = apply
+        self.applyT = applyT
