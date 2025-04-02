@@ -4,8 +4,9 @@ import torch as th
 from linop import LinOp
 
 
+# TODO adapt all algos to the convention that the callback also encodes the termination condition
 def no_op(*_):
-    return None
+    return False
 
 
 def pdhg1(
@@ -17,7 +18,7 @@ def pdhg1(
     prox_sF: Callable[[th.Tensor], th.Tensor],
     theta: float = 1.0,
     max_iter: int = 10_000,
-    callback: Callable[[th.Tensor, th.Tensor], None] = no_op,
+    callback: Callable[[th.Tensor, th.Tensor], bool | None] = no_op,
 ) -> th.Tensor:
     """
     Algorithm 1 in https://doi.org/10.1007/s10851-010-0251-1
@@ -31,7 +32,8 @@ def pdhg1(
         y = prox_sF(y + sigma * K @ x_bar)
         x = prox_tG(x - tau * K.T @ y)
         x_bar = x + theta * (x - x_prev)
-        callback(x, y)
+        if callback(x, y):
+            break
 
     return x
 
@@ -73,7 +75,7 @@ def fista(
     prox_g: Callable[[th.Tensor], th.Tensor],
     tau: float,
     max_iter: int = 10_000,
-    callback: Callable[[th.Tensor], None] = no_op,
+    callback: Callable[[th.Tensor], bool | None] = no_op,
 ) -> th.Tensor:
     x = x0.clone()
     y = x0.clone()
@@ -86,7 +88,8 @@ def fista(
         y = x + (t - 1) / t_new * (x - x_prev)
         t = t_new
         x_prev = x.clone()
-        callback(x)
+        if callback(x):
+            break
 
     return x
 
@@ -182,3 +185,13 @@ def cg(
             break
 
     return x
+
+# TODO implement properly
+def power_method(A: LinOp, x0: th.Tensor, max_iter: int=100):
+    x = x0.clone()
+    s = 0
+    for _ in range(max_iter):
+        x = A.T @ A @ x
+        s = math.sqrt(th.sum(th.abs(x)**2).item())
+        x /= s
+    return s
