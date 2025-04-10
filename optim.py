@@ -9,6 +9,20 @@ def no_op(*_):
     return False
 
 
+def gd(
+    x0: th.Tensor,
+    grad: Callable[[th.Tensor], th.Tensor],
+    tau: float,
+    max_iter: int = 100,
+    callback: Callable[[th.Tensor], bool | None] = no_op,
+):
+    x = x0.clone()
+    for _ in range(max_iter):
+        x -= tau * grad(x)
+        callback(x)
+    return x
+
+
 def pdhg1(
     x0: th.Tensor,
     K: LinOp,
@@ -148,50 +162,100 @@ def ipalm(
 
 
 def cg(
+    x0: th.Tensor,
     A: LinOp,
     b: th.Tensor,
-    x0: th.Tensor,
     tol: float = 1e-4,
     dims: tuple[int, ...] = (1, 2, 3),
     max_iter: int = 100,
-    callback: Callable[[th.Tensor], None] = no_op,
+    callback: Callable[[th.Tensor], bool | None] = no_op,
 ):
-    assert tol > 0.0
-    assert len(x0.shape) > 1
-
     x = x0.clone()
     r = b - A @ x
-
     p = r.clone()
 
     def ip(a, b):
-        return th.sum(a * b, dim=dims, keepdim=True)
+        return th.sum(a.conj() * b, dim=dims, keepdim=True).real
 
-    it = 0
-    while th.max((r**2).sum(dim=dims).sqrt()) > tol:
+    for _ in range(max_iter):
         Ap = A @ p
         alpha = ip(r, r) / ip(p, Ap)
         alpha[~th.isfinite(alpha)] = 0.0
         x += alpha * p
         r_prev = th.clone(r)
-        # print((r**2).sum())
         r -= alpha * Ap
         beta = ip(r, r) / ip(r_prev, r_prev)
         beta[~th.isfinite(beta)] = 0.0
         p = r + beta * p
-        it += 1
-        callback(x)
-        if it == max_iter:
+        if th.max((r**2).sum(dim=dims).sqrt()) < tol:
             break
+        callback(x)
 
     return x
 
+
 # TODO implement properly
-def power_method(A: LinOp, x0: th.Tensor, max_iter: int=100):
+def power_method(x0: th.Tensor, A: LinOp, max_iter: int = 100):
     x = x0.clone()
-    s = 0
+
     for _ in range(max_iter):
-        x = A.T @ A @ x
-        s = math.sqrt(th.sum(th.abs(x)**2).item())
-        x /= s
-    return s
+        ax = A @ x
+        x = ax / (ax.abs() ** 2).sum().sqrt()
+
+    return x
+
+
+def condat_vu(
+    x_0: th.Tensor,
+    y_0: th.Tensor,
+    K: LinOp,
+    prox_g: Callable[[th.Tensor], th.Tensor],
+    prox_fs: Callable[[th.Tensor], th.Tensor],
+    nabla_h: Callable[[th.Tensor], th.Tensor],
+    tau: float,
+    sigma: float,
+    callback: Callable[[th.Tensor, th.Tensor], bool | None] = no_op,
+    max_iter=100,
+):
+    x = x_0.clone()
+    y = y_0.clone()
+
+    for _ in range(max_iter):
+        x_old = x.clone()
+        x = prox_g(x - tau * (K.T @ y + nabla_h(x)))
+        y = prox_fs(y + sigma * (K @ (2 * x - x_old)))
+        callback(x, y)
+
+    return x
+
+
+def irgn(
+    x0,
+    jacobian,
+    solve,
+    max_iter: int = 100,
+    callback=lambda _: None,
+):
+    x = x0.clone()
+    dx = th.zeros_like(x)
+
+    for _ in range(max_iter):
+        # This basically doesnt actually do anything anymore since everything
+        # is outsourced to "solve" (which might be a misnomer)
+        dx = solve(jacobian(x), x)
+        x += dx
+        callback(x)
+
+    return x
+
+
+def pgn(x0, jacobian, solve, max_iter: int = 100, callback=lambda _: None):
+    x = x0.clone()
+
+    for _ in range(max_iter):
+        # This basically doesnt actually do anything anymore since everything
+        # is outsourced to "solve" (which might be a misnomer)
+        x = solve(jacobian(x), x)
+        callback(x)
+
+    return x
