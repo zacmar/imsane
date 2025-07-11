@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imsane"
+version = "0.0.2"
+authors = [{name="Martin Zach", email="me@martin-zach.com"}]
+description = "A collection of sane implementations of linear operators and various algorithms in sampling and optimization implemented in python/pytorch."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-file = ["LICENSE"]
+keywords = ["optimization", "markov chain monte carlo", "imaging problems", "inverse imaging", "sampling", "linear operators"]
+
+[project.optional-dependencies]
+examples = [
+  "matplotlib >=3.9",
+  "torch"
+  "scikit-image"
+]
+dev = [
+  "black",
+  "pyright"
+]
+
+[project.urls]
+Homepage = "https://github.com/zacmar/imsane"
+Issues = "https://github.com/zacmar/imsane/issues"

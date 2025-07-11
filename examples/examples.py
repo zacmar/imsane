@@ -2,8 +2,8 @@ import torch as th
 from time import perf_counter
 import matplotlib.pyplot as plt
 import math
-import linop
-import optim
+import imsane.linop
+import imsane.optim
 import skimage.data as sd
 
 
@@ -12,7 +12,7 @@ def anisotv_l2():
     sigma = 0.1
     y = x + sigma * th.randn_like(x)
 
-    K = linop.Grad2d()
+    K = imsane.linop.Grad2d()
 
     lamda = 5e0
     max_iter = 5_000
@@ -30,7 +30,7 @@ def anisotv_l2():
         return K @ (K.T @ p / lamda - y)
 
     tau_fista = 1 / (L_D**2 / lamda)
-    pstar = optim.fista(
+    pstar = imsane.optim.fista(
         K @ y,
         nabla,
         lambda p: prox_infty(p, tau),
@@ -53,7 +53,7 @@ def anisotv_l2():
     i = 0
     pdhg1_error = th.empty((max_iter,))
     t = perf_counter()
-    _ = optim.pdhg1(
+    _ = imsane.optim.pdhg1(
         y,
         K,
         tau,
@@ -69,7 +69,7 @@ def anisotv_l2():
     i = 0
     pdhg2_error = th.empty((max_iter,))
     t = perf_counter()
-    _ = optim.pdhg2(
+    _ = imsane.optim.pdhg2(
         y,
         K,
         tau,
@@ -85,7 +85,7 @@ def anisotv_l2():
     i = 0
     fista_error = th.empty((max_iter,))
     t = perf_counter()
-    _ = optim.fista(
+    _ = imsane.optim.fista(
         K @ y,
         nabla,
         lambda p: prox_infty(p, tau),
@@ -107,19 +107,19 @@ def anisotv_l2():
 def mri():
     x = th.from_numpy(sd.shepp_logan_phantom())[None, None]
     sigma = 0.1
-    F = linop.Generic(
+    F = imsane.linop.Generic(
         lambda x: th.fft.rfft2(x, norm="ortho"),
         lambda y: th.fft.irfft2(y, norm="ortho"),
     )
     fx = F @ x
     th.random.manual_seed(0)
     mask = th.rand(fx.shape) > 0.75
-    M = linop.Sample(mask)
+    M = imsane.linop.Sample(mask)
     A = M @ F
     ax = A @ x
 
     y = ax + sigma * th.randn_like(ax)
-    K = linop.Grad2d()
+    K = imsane.linop.Grad2d()
     L_D = math.sqrt(8)
     lamda = 10
     max_iter = 100_000
@@ -136,7 +136,7 @@ def mri():
     tau = 1 / L_D / 10
     sigma = 1 / L_D**2 / tau
 
-    xstar = optim.pdhg1(
+    xstar = imsane.optim.pdhg1(
         A.T @ y,
         K,
         tau,
@@ -155,7 +155,7 @@ def mri():
 
     times_pdhg, values_pdhg = [], []
     t = perf_counter()
-    _ = optim.pdhg1(
+    _ = imsane.optim.pdhg1(
         A.T @ y,
         K,
         tau,
@@ -188,7 +188,7 @@ def mri():
 
         nonlocal pstar
 
-        pstar = optim.fista(
+        pstar = imsane.optim.fista(
             pstar,
             nabla_inner,
             lambda p: prox_infty(p, tau),
@@ -201,7 +201,7 @@ def mri():
     iters = 0
     times_fista, values_fista = [], []
     t = perf_counter()
-    _ = optim.fista(
+    _ = imsane.optim.fista(
         A.T @ y,
         nabla,
         prox,

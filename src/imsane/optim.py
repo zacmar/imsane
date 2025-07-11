@@ -1,7 +1,7 @@
 from typing import Callable
 import math
 import torch as th
-from linop import LinOp
+from imsane.linop import LinOp
 
 
 # TODO adapt all algos to the convention that the callback also encodes the termination condition
