@@ -16,7 +16,7 @@ keywords = ["optimization", "markov chain monte carlo", "imaging problems", "inv
 [project.optional-dependencies]
 examples = [
   "matplotlib >=3.9",
-  "torch"
+  "torch",
   "scikit-image"
 ]
 dev = [
